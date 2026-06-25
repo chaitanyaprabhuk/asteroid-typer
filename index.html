@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Asteroid Typer — Cosmic Word Defense</title>
+<meta name="description" content="Type words to destroy asteroids before they hit your ship! Pure Space vocabularies from A1 to C2 proficiency levels."/>
+<meta name="keywords" content="typing game, space game, vocabulary trainer, CEFR space words, browser game, WPM trainer"/>
+<meta property="og:title" content="Asteroid Typer — Cosmic Word Defense"/>
+<meta property="og:description" content="Destroy asteroids by typing space words! Pure astronomical categories from A1 to C2. Free to play."/>
+<meta property="og:type" content="website"/>
+
+<style>
+  /* ── THEME CONFIGURATIONS ── */
+  body { 
+    --bg-main: #060616; 
+    --primary: #00e5ff; 
+    --accent: #b2ebf2; 
+    --panel-bg: rgba(10,25,50,0.9); 
+    --laser-color: #00e5ff; 
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; min-height: 100vh; background: var(--bg-main); font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; }
+
+  header { width: 100%; max-width: 440px; padding: 14px 15px 0; display: flex; justify-content: space-between; align-items: center; }
+  header h1 { font-size: 16px; font-weight: 600; color: var(--accent); letter-spacing: 0.03em; }
+  header span { font-size: 11px; color: rgba(150,180,255,0.4); }
+
+  .ad-banner {
+    width: 100%; max-width: 440px;
+    min-height: 60px;
+    background: rgba(15,20,50,0.6);
+    border: 0.5px dashed rgba(100,150,255,0.2);
+    border-radius: 8px;
+    margin: 8px 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ad-banner span { font-size: 10px; color: rgba(100,150,255,0.25); }
+
+  #gw { width: 100%; max-width: 440px; background: var(--bg-main); border-radius: 12px; overflow: hidden; position: relative; display: flex; flex-direction: column; border: 0.5px solid rgba(100,150,255,0.15); }
+
+  canvas#starfield { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+
+  #hud { position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: rgba(5,5,18,0.85); border-bottom: 0.5px solid rgba(100,150,255,0.2); }
+  .hs { text-align: center; }
+  .hl { font-size: 9px; color: rgba(150,180,255,0.5); letter-spacing: 0.05em; text-transform: uppercase; }
+  .hv { font-size: 15px; font-weight: 500; color: var(--accent); }
+
+  #ca { position: relative; flex: 1; overflow: hidden; min-height: 480px; }
+
+  /* ── VARIABLE SIZED ASTEROIDS ── */
+  .ast { position: absolute; display: flex; flex-direction: column; align-items: center; user-select: none; white-space: nowrap; transform: translateX(-50%); pointer-events: none; }
+  .ast-rock {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><path d='M32 4 C46 2, 59 12, 61 26 C63 40, 54 57, 38 61 C20 65, 3 52, 4 34 C4 16, 18 6, 32 4 Z' fill='%234e4642'/><path d='M20 16 C25 12, 32 18, 30 24 C28 30, 16 24, 20 16 Z M44 34 C48 32, 52 38, 48 42 C44 46, 40 42, 44 34 Z' fill='%2336302d'/></svg>");
+    background-size: contain; background-repeat: no-repeat;
+    filter: drop-shadow(0 0 5px rgba(0,0,0,0.7));
+  }
+  .ast-word {
+    margin-top: 2px;
+    background: var(--panel-bg);
+    border: 1px solid rgba(100,150,255,0.25);
+    border-radius: 5px;
+    padding: 2px 7px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #c8d8ff;
+    box-shadow: 0 3px 5px rgba(0,0,0,0.4);
+  }
+  .ast.tgt .ast-word { border-color: var(--primary); color: #fff; box-shadow: 0 0 8px var(--primary); }
+  .ast .tp { color: var(--primary); font-weight: bold; }
+
+  /* ── REDESIGNED ADVANCED WEAPON (ROCKET) ── */
+  #ship-wrapper {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    width: 50px;
+    height: 50px;
+    transform: translateX(-50%);
+    z-index: 3;
+  }
+  #ship { 
+    width: 100%;
+    height: 100%;
+    pointer-events: none; 
+    transition: transform 0.08s cubic-bezier(0.25, 1, 0.5, 1);
+    transform-origin: center center;
+    filter: drop-shadow(0 0 8px var(--primary));
+  }
+
+  #ia { position: relative; z-index: 2; display: flex; align-items: center; justify-content: flex-end; padding: 6px 14px; background: rgba(5,5,18,0.95); border-top: 0.5px solid rgba(100,150,255,0.15); }
+  #cat-badge { font-size: 10px; color: var(--accent); text-align: right; font-weight: bold; letter-spacing: 0.05em; }
+
+  #ad-slot { width: 100%; max-width: 440px; min-height: 50px; background: rgba(10,12,30,0.95); border: 0.5px solid rgba(100,150,255,0.1); border-radius: 0 0 12px 12px; display: flex; align-items: center; justify-content: center; padding: 6px; }
+  #ad-slot .ad-label { font-size: 9px; color: rgba(150,180,255,0.25); margin-right: 8px; }
+
+  #ov { position: absolute; inset: 0; z-index: 10; background: rgba(4,4,16,0.97); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 20px; }
+  #ov h2 { font-size: 24px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; }
+  #ov p { font-size: 13px; color: rgba(150,180,255,0.6); text-align: center; max-width: 300px; line-height: 1.6; }
+  
+  .obtn { background: linear-gradient(135deg, rgba(0,229,255,0.3), rgba(0,100,255,0.4)); border: 2px solid var(--primary); border-radius: 30px; color: #fff; font-size: 16px; font-weight: 600; padding: 14px 40px; cursor: pointer; font-family: inherit; letter-spacing: 0.05em; box-shadow: 0 0 15px rgba(0,229,255,0.2); transition: all 0.2s ease; }
+  .obtn:hover { transform: scale(1.04); box-shadow: 0 0 25px rgba(0,229,255,0.5); background: var(--primary); color: #000; }
+  
+  .big-score { font-size: 48px; font-weight: 700; color: var(--primary); text-shadow: 0 0 10px rgba(0,229,255,0.4); }
+
+  /* Wave Banner Prompt Overlay */
+  #wave-alert { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 24px; font-weight: bold; background: rgba(0,0,0,0.85); border: 1px solid var(--primary); padding: 10px 30px; border-radius: 8px; z-index: 8; pointer-events: none; opacity: 0; transition: opacity 0.4s ease; text-transform: uppercase; letter-spacing: 0.1em; text-shadow: 0 0 8px var(--primary); }
+
+  /* ── LASER WEAPON PARTICLES ── */
+  .exp { position: absolute; pointer-events: none; font-size: 22px; z-index: 5; transform: translate(-50%, -50%); animation: pop 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards; }
+  @keyframes pop { 0%{opacity:1;transform:translate(-50%, -50%) scale(0.4);} 100%{opacity:0;transform:translate(-50%, -50%) scale(1.6);} }
+  .laser { position: absolute; width: 3px; background: linear-gradient(to top, var(--laser-color) 70%, #fff); pointer-events: none; z-index: 4; box-shadow: 0 0 8px var(--laser-color); animation: zap 0.1s linear forwards; }
+  @keyframes zap { 0%{opacity:1;} 100%{opacity:0;} }
+
+  #hs-panel { width: 100%; max-width: 260px; margin-top: 10px; }
+  #hs-panel .hs-title { font-size: 10px; color: rgba(150,180,255,0.35); text-align: center; margin-bottom: 5px; text-transform: uppercase; }
+  #hs-table { width: 100%; border-collapse: collapse; }
+  #hs-table td { font-size: 11px; padding: 4px 6px; color: rgba(150,180,255,0.65); border-bottom: 0.5px solid rgba(100,150,255,0.1); }
+  #hs-table td:last-child { text-align: right; color: var(--primary); font-weight: bold; }
+
+  @media(max-width: 480px) {
+    #ca { min-height: 400px; }
+  }
+
+  footer { width: 100%; max-width: 440px; padding: 10px 0 15px; display: flex; justify-content: center; gap: 15px; }
+  footer a { font-size: 10px; color: rgba(150,180,255,0.3); text-decoration: none; }
+  footer a:hover { color: rgba(150,180,255,0.6); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🚀 Asteroid Typer</h1>
+  <span>Cosmic Wave Trainer</span>
+</header>
+
+<div class="ad-banner">
+  <span>Advertisement Banner</span>
+</div>
+
+<div id="gw">
+  <canvas id="starfield"></canvas>
+
+  <div id="hud">
+    <div class="hs"><div class="hl">Score</div><div class="hv" id="score">0</div></div>
+    <div class="hs"><div class="hl">Lives</div><div class="hv" id="lives">❤️❤️❤️</div></div>
+    <div class="hs"><div class="hl">Wave / Level</div><div class="hv" id="level">1</div></div>
+    <div class="hs"><div class="hl">WPM</div><div class="hv" id="wpm">0</div></div>
+    <div class="hs"><div class="hl">Best</div><div class="hv" id="bestwpm">0</div></div>
+  </div>
+
+  <div id="ca">
+    <div id="wave-alert">Wave 1</div>
+    <div id="ship-wrapper">
+      <svg id="ship" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <path d="M32 4 L48 40 L38 36 L32 54 L26 36 L16 40 Z" fill="#cfd8dc"/>
+        <path d="M32 4 L32 54 L26 36 L16 40 Z" fill="#b0bec5"/>
+        <path d="M32 12 L40 36 L32 32 L24 36 Z" fill="#00e5ff" opacity="0.8"/>
+        <path d="M16 40 L8 48 L12 36 Z" fill="#78909c"/>
+        <path d="M48 40 L56 48 L52 36 Z" fill="#546e7a"/>
+        <path d="M32 54 L36 62 L32 58 L28 62 Z" fill="#ff3d00"/>
+      </svg>
+    </div>
+  </div>
+
+  <div id="ia">
+    <div id="cat-badge">WAVE 1</div>
+  </div>
+
+  <div id="ov">
+    <h2>🚀 Asteroid Typer</h2>
+    <p>Interstellar threats are approaching. Type directly on your keyboard to target and vaporize them. Surviving gets harder every wave!</p>
+    <button class="obtn" id="sbtn">Launch Mission</button>
+    <div id="hs-panel"></div>
+  </div>
+</div>
+
+<div id="ad-slot">
+  <span class="ad-label">AD</span>
+  <div style="background:rgba(20,30,70,0.5);border:0.5px dashed rgba(100,150,255,0.2);border-radius:4px;width:280px;height:36px;display:flex;align-items:center;justify-content:center;">
+    <span style="font-size:10px;color:rgba(100,150,255,0.25);">Google AdSense Banner Slot</span>
+  </div>
+</div>
+
+<footer>
+  <a href="#">Privacy Policy</a>
+  <a href="#">Contact</a>
+</footer>
+
+<script>
+// PURE GRADUATED SPACE CEFR VOCABULARY TIERS
+const VOCAB = {
+  a1: ["sky", "sun", "moon", "star", "mars", "earth", "space", "alien", "rocket", "planet", "launch", "fly", "world", "night", "dark"],
+  a2: ["orbit", "comet", "solar", "lunar", "debris", "thrust", "cloud", "shine", "scout", "flare", "rover", "crater", "meteor"],
+  b1: ["galaxy", "nebula", "saturn", "cosmos", "capsule", "vacuum", "gravity", "photon", "plasma", "shuttle", "meteorite", "astronomy"],
+  b2: ["pulsar", "quasar", "stellar", "voyager", "aurora", "eclipse", "asteroid", "horizon", "ray", "density", "telemetry", "telescope"],
+  c1: ["supernova", "wormhole", "radiation", "exoplanet", "magnitude", "atmosphere", "cosmology", "orbital", "ionosphere", "nebular"],
+  c2: ["interstellar", "spacecraft", "astronaut", "satellite", "perihelion", "aphelion", "solstice", "equinox", "parallax", "spectrum", "redshift", "blackhole", "darkstar", "graviton", "magnetosphere"]
+};
+
+// PROGRESSIVE WAVE SYSTEM CONFIGURATION (LEVEL 1 TO 10+)
+const WAVE_CONFIG = {
+  1:  { pools: ["a1"],             speed: 0.24, interval: 3300, clearCount: 5 },
+  2:  { pools: ["a1", "a2"],       speed: 0.32, interval: 3000, clearCount: 6 },
+  3:  { pools: ["a1", "a2"],       speed: 0.38, interval: 2700, clearCount: 8 },
+  4:  { pools: ["a2", "b1"],       speed: 0.44, interval: 2500, clearCount: 10 },
+  5:  { pools: ["b1", "b2"],       speed: 0.50, interval: 2300, clearCount: 12 },
+  6:  { pools: ["b2", "c1"],       speed: 0.56, interval: 2100, clearCount: 12 },
+  7:  { pools: ["c1"],             speed: 0.62, interval: 1900, clearCount: 15 },
+  8:  { pools: ["c1", "c2"],       speed: 0.68, interval: 1700, clearCount: 15 },
+  9:  { pools: ["c2"],             speed: 0.74, interval: 1600, clearCount: 15 },
+  10: { pools: ["all"],            speed: 0.85, interval: 1400, clearCount: 20 }
+};
+
+let asteroids=[], score=0, lives=3, currentWave=1, running=false;
+let spawnTimer, fallSpeed=0.24, spawnInterval=3300;
+let wordsTyped=0, waveClearedCount=0, startTime, bestWpm=0, sessionWpm=0;
+let targeted=null;
+let currentInput = "";
+let AudioCtx=null;
+
+const gw=document.getElementById('gw');
+const ca=document.getElementById('ca');
+const ov=document.getElementById('ov');
+const scoreEl=document.getElementById('score');
+const livesEl=document.getElementById('lives');
+const levelEl=document.getElementById('level');
+const wpmEl=document.getElementById('wpm');
+const bestwpmEl=document.getElementById('bestwpm');
+const catBadge=document.getElementById('cat-badge');
+const starCanvas=document.getElementById('starfield');
+const starCtx=starCanvas.getContext('2d');
+const ship=document.getElementById('ship');
+const shipWrapper=document.getElementById('ship-wrapper');
+const waveAlert=document.getElementById('wave-alert');
+
+function getWaveWords(waveNum) {
+  const config = WAVE_CONFIG[waveNum] || WAVE_CONFIG[10]; // Fallback to max difficulty infinitely
+  if (config.pools.includes("all")) {
+    return [...VOCAB.a1, ...VOCAB.a2, ...VOCAB.b1, ...VOCAB.b2, ...VOCAB.c1, ...VOCAB.c2];
+  }
+  let combined = [];
+  config.pools.forEach(p => { if(VOCAB[p]) combined = combined.concat(VOCAB[p]); });
+  return combined;
+}
+
+function getAC(){if(!AudioCtx)AudioCtx=new(window.AudioContext||window.webkitAudioContext)();return AudioCtx;}
+function playSound(type){
+  try{
+    const ac=getAC(), o=ac.createOscillator(), g=ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    if(type==='destroy'){o.frequency.setValueAtTime(800,ac.currentTime);o.frequency.exponentialRampToValueAtTime(150,ac.currentTime+0.12);g.gain.setValueAtTime(0.15,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.18);o.start();o.stop(ac.currentTime+0.18);}
+    else if(type==='miss'){o.frequency.setValueAtTime(180,ac.currentTime);o.frequency.exponentialRampToValueAtTime(60,ac.currentTime+0.25);g.gain.setValueAtTime(0.15,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.25);o.type='sawtooth';o.start();o.stop(ac.currentTime+0.25);}
+    else if(type==='type'){o.frequency.setValueAtTime(580,ac.currentTime);g.gain.setValueAtTime(0.03,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.04);o.start();o.stop(ac.currentTime+0.04);}
+  }catch(e){}
+}
+
+function initStars(){
+  starCanvas.width=gw.offsetWidth||440; starCanvas.height=gw.offsetHeight||560;
+  const stars=Array.from({length:100},()=>({x:Math.random()*starCanvas.width, y:Math.random()*starCanvas.height, r:Math.random()*1.3+0.3, a:Math.random()*Math.PI*2}));
+  (function draw(){starCtx.clearRect(0,0,starCanvas.width,starCanvas.height);stars.forEach(s=>{s.a+=0.005;starCtx.beginPath();starCtx.arc(s.x,s.y,s.r,0,Math.PI*2);starCtx.fillStyle=`rgba(180,200,255,${0.2+0.3*Math.abs(Math.sin(s.a))})`;starCtx.fill();});requestAnimationFrame(draw);})();
+}
+
+function livesDisplay(n){return'❤️'.repeat(Math.max(0,n))+'🖤'.repeat(Math.max(0,3-n));}
+function getHS(){try{return JSON.parse(localStorage.getItem('ast_hs_wave')||'[]');}catch(e){return[];}}
+function saveHS(e){try{let h=getHS();h.push(e);h.sort((a,b)=>b.score-a.score);localStorage.setItem('ast_hs_wave',JSON.stringify(h.slice(0,5)));}catch(e){}}
+function renderHS(){
+  const hs=getHS(), p=document.getElementById('hs-panel'); if(!p)return; if(!hs.length){p.innerHTML='';return;}
+  p.innerHTML=`<div class="hs-title">High Scores</div><table id="hs-table">`+hs.map((h,i)=>`<tr><td>${i+1}. Wave ${h.wave}</td><td>${h.score}pts · ${h.wpm}WPM</td></tr>`).join('')+`</table>`;
+}
+
+function spawnAsteroid(){
+  if(!running)return;
+  const pool=getWaveWords(currentWave), word=pool[Math.floor(Math.random()*pool.length)];
+  const el=document.createElement('div'); el.className='ast';
+  
+  // DYNAMIC ROCK SIZING BASED ON WORD LENGTH
+  const wordLength = word.length;
+  const sizeBox = Math.max(28, Math.min(64, wordLength * 4.5 + 14));
+  
+  const rock = document.createElement('div');
+  rock.className = 'ast-rock';
+  rock.style.width = sizeBox + 'px';
+  rock.style.height = sizeBox + 'px';
+  rock.style.transform = `rotate(${Math.random() * 360}deg)`;
+  
+  const wordDiv = document.createElement('div');
+  wordDiv.className = 'ast-word';
+  wordDiv.innerHTML = word;
+  
+  el.appendChild(rock); el.appendChild(wordDiv);
+  const left=40+Math.random()*Math.max(40,(ca.offsetWidth||440)-120);
+  el.style.left=left+'px'; el.style.top='-70px';
+  ca.appendChild(el); asteroids.push({el, wordDiv, word, top:-70});
+}
+
+function updateTargeted(){
+  let best=null;
+  asteroids.forEach(a=>{if(currentInput.length>0&&a.word.startsWith(currentInput)&&(!best||a.top>best.top))best=a;});
+  if(targeted && targeted !== best){ targeted.el.classList.remove('tgt'); targeted.wordDiv.innerHTML=targeted.word; }
+  targeted=best;
+  
+  if(targeted){
+    targeted.el.classList.add('tgt');
+    const w=targeted.word, p=currentInput.length;
+    targeted.wordDiv.innerHTML=`<span class="tp">${w.slice(0,p)}</span>${w.slice(p)}`;
+    rotateWeaponToTarget(targeted);
+  } else {
+    ship.style.transform = `rotate(0deg)`;
+  }
+}
+
+function rotateWeaponToTarget(targetNode) {
+  const cr = ca.getBoundingClientRect();
+  const sr = shipWrapper.getBoundingClientRect();
+  const ar = targetNode.el.getBoundingClientRect();
+  const sx = (sr.left + sr.width / 2) - cr.left;
+  const sy = (sr.top + sr.height / 2) - cr.top;
+  const ax = (ar.left + ar.width / 2) - cr.left;
+  const ay = (ar.top + ar.height / 2) - cr.top;
+  const angle = Math.atan2(ay - sy, ax - sx) * 180 / Math.PI;
+  ship.style.transform = `rotate(${angle + 90}deg)`;
+}
+
+function fireLaser(a){
+  const cr = ca.getBoundingClientRect();
+  const sr = shipWrapper.getBoundingClientRect();
+  const ar = a.el.getBoundingClientRect();
+  const sx = (sr.left + sr.width / 2) - cr.left;
+  const sy = sr.top - cr.top;
+  const ax = (ar.left + ar.width / 2) - cr.left;
+  const ay = (ar.top + ar.height / 2) - cr.top;
+  const len = Math.hypot(ax - sx, ay - sy);
+  const angle = Math.atan2(ay - sy, ax - sx) * 180 / Math.PI;
+
+  const laser = document.createElement('div');
+  laser.className = 'laser';
+  laser.style.cssText = `left: ${sx}px; top: ${sy}px; height: ${len}px; transform-origin: top center; transform: rotate(${angle - 90}deg);`;
+  ca.appendChild(laser);
+  setTimeout(() => laser.remove(), 90);
+}
+
+function showWaveAlert(waveNum) {
+  waveAlert.textContent = `Wave ${waveNum}`;
+  waveAlert.style.opacity = "1";
+  setTimeout(() => { waveAlert.style.opacity = "0"; }, 1550);
+}
+
+function checkWaveProgression() {
+  const config = WAVE_CONFIG[currentWave] || WAVE_CONFIG[10];
+  if(waveClearedCount >= config.clearCount) {
+    currentWave++;
+    waveClearedCount = 0;
+    
+    // Dynamically shift values according to configuration parameters
+    const nextConfig = WAVE_CONFIG[currentWave] || { speed: config.speed + 0.06, interval: Math.max(1000, config.interval - 100), clearCount: 20 };
+    fallSpeed = nextConfig.speed;
+    spawnInterval = nextConfig.interval;
+    
+    levelEl.textContent = currentWave;
+    catBadge.textContent = `WAVE ${currentWave}`;
+    
+    showWaveAlert(currentWave);
+    
+    // Reconfigure engine clock cycle with new speeds
+    clearInterval(spawnTimer);
+    spawnTimer = setInterval(spawnAsteroid, spawnInterval);
+  }
+}
+
+function boom(a){
+  fireLaser(a);
+  const ar=a.el.getBoundingClientRect(), cr=ca.getBoundingClientRect();
+  const exp=document.createElement('div'); exp.className='exp';
+  exp.style.left=(ar.left-cr.left+ar.width/2)+'px'; exp.style.top=(ar.top-cr.top+ar.height/2)+'px';
+  exp.textContent='💥'; ca.appendChild(exp); setTimeout(()=>exp.remove(),350);
+  a.el.remove(); asteroids=asteroids.filter(x=>x!==a);
+  
+  score += Math.ceil(a.word.length * currentWave * 1.5); 
+  scoreEl.textContent=score;
+  
+  wordsTyped++; 
+  waveClearedCount++;
+  playSound('destroy');
+  
+  const elapsed=(Date.now()-startTime)/60000;
+  sessionWpm=elapsed>0?Math.round(wordsTyped/elapsed):0;
+  wpmEl.textContent=sessionWpm;
+  if(sessionWpm>bestWpm){bestWpm=sessionWpm; bestwpmEl.textContent=bestWpm;}
+  
+  checkWaveProgression();
+}
+
+function tick(){
+  if(!running)return;
+  const areaH=ca.offsetHeight||480;
+  asteroids.forEach(a=>{
+    a.top+=fallSpeed; a.el.style.top=a.top+'px';
+    if(a.top>areaH-45){
+      a.el.remove(); asteroids=asteroids.filter(x=>x!==a);
+      if(targeted===a){targeted=null; currentInput=''; updateTargeted();}
+      lives--; livesEl.textContent=livesDisplay(lives); playSound('miss');
+      if(lives<=0)endGame();
+    }
+  });
+  if(running)requestAnimationFrame(tick);
+}
+
+function startGame(){
+  asteroids.forEach(a=>a.el.remove()); asteroids=[];
+  currentWave=1;
+  waveClearedCount=0;
+  score=0; 
+  lives=3; 
+  wordsTyped=0; 
+  
+  const initialConfig = WAVE_CONFIG[1];
+  fallSpeed = initialConfig.speed; 
+  spawnInterval = initialConfig.interval;
+  
+  scoreEl.textContent='0'; 
+  livesEl.textContent=livesDisplay(lives); 
+  levelEl.textContent=currentWave; 
+  wpmEl.textContent='0';
+  currentInput=''; 
+  ov.style.display='none'; 
+  running=true; 
+  startTime=Date.now(); 
+  targeted=null;
+  
+  catBadge.textContent=`WAVE ${currentWave}`;
+  showWaveAlert(currentWave);
+  
+  spawnAsteroid(); 
+  clearInterval(spawnTimer); 
+  spawnTimer=setInterval(spawnAsteroid,spawnInterval);
+  requestAnimationFrame(tick);
+}
+
+function endGame(){
+  running=false; clearInterval(spawnTimer);
+  saveHS({score, wpm:sessionWpm, wave:currentWave});
+  ov.style.display='flex';
+  ov.innerHTML = `
+    <h2>Defeat 💫</h2>
+    <div class="big-score">${score}</div>
+    <p>You fell on <strong>Wave ${currentWave}</strong> with a speed velocity of ${sessionWpm} WPM.</p>
+    <button class="obtn" id="sbtn" style="margin-top:10px;">Launch New Mission</button>
+    <div id="hs-panel"></div>
+  `;
+  renderHS();
+  document.getElementById('sbtn').addEventListener('click',startGame);
+}
+
+// Global active typing window link
+window.addEventListener('keydown', e => {
+  if(!running) return;
+  if(e.key === ' ') e.preventDefault();
+  
+  if(e.key === 'Backspace') {
+    currentInput = currentInput.slice(0, -1);
+  } else if(e.key.length === 1 && e.key.match(/[a-z]/i)) {
+    currentInput += e.key.toLowerCase();
+    playSound('type');
+    
+    // FIRING DYNAMIC LASER MID-WORD FOR EACH CHARACTER PRESSED
+    updateTargeted();
+    if(targeted) { fireLaser(targeted); }
+  }
+
+  let matched = null;
+  asteroids.forEach(a => { if(a.word === currentInput) matched = a; });
+  if(matched) { boom(matched); currentInput = ''; updateTargeted(); }
+  else { updateTargeted(); }
+});
+
+document.getElementById('sbtn').addEventListener('click',startGame);
+renderHS(); initStars();
+window.addEventListener('resize',()=>{starCanvas.width=gw.offsetWidth||440; starCanvas.height=gw.offsetHeight||560;});
+</script>
+</body>
+</html>
